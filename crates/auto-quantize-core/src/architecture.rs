@@ -23,11 +23,16 @@ impl ModelArchitecture {
         const KV_TENSORS: u64 = 2; // one cache each for K and V
         const BYTES_PER_ELEMENT: u64 = 2; // fp16
 
+        // Saturating, not checked/plain: an unvalidated config.json or
+        // --context value could otherwise overflow this into a panic (debug)
+        // or a silently wrong wrapped value (release). Saturating to u64::MAX
+        // still reserves "all of it" as headroom, which is the same honest
+        // outcome as any other absurdly-oversized-for-budget shape.
         KV_TENSORS
-            * self.num_layers as u64
-            * self.hidden_size as u64
-            * BYTES_PER_ELEMENT
-            * context_length as u64
+            .saturating_mul(self.num_layers as u64)
+            .saturating_mul(self.hidden_size as u64)
+            .saturating_mul(BYTES_PER_ELEMENT)
+            .saturating_mul(context_length as u64)
     }
 }
 
