@@ -45,6 +45,10 @@ impl std::error::Error for DownloadError {}
 
 /// Downloads every file backing a quant into `output_dir`, in order,
 /// printing a progress line per file to stderr. Returns the paths written.
+///
+/// An existing partial file at the destination path is resumed via an HTTP
+/// `Range` request rather than restarted from zero (docs/BACKLOG.md 2.2); a
+/// destination that already matches the expected size is left untouched.
 pub fn download_files(
     repo: &str,
     files: &[QuantFile],
@@ -61,41 +65,67 @@ pub fn download_files(
     let mut written = Vec::with_capacity(files.len());
     for (idx, file) in files.iter().enumerate() {
         eprintln!("Downloading {} ({}/{})...", file.path, idx + 1, files.len());
-        written.push(download_one(&client, repo, file, output_dir)?);
+        let url = format!("https://huggingface.co/{repo}/resolve/main/{}", file.path);
+        let dest_name = Path::new(&file.path)
+            .file_name()
+            .map(|n| n.to_owned())
+            .unwrap_or_else(|| file.path.clone().into());
+        let dest_path = output_dir.join(dest_name);
+        download_to(&client, &url, &dest_path, file.size_bytes, &file.path)?;
+        written.push(dest_path);
     }
     Ok(written)
 }
 
-fn download_one(
+/// Streams `url` to `dest_path`, verifying the final size against
+/// `expected_size`. `label` is used only in error messages. Returns the
+/// number of bytes actually transferred over the network during this call
+/// (0 if the destination already matched `expected_size`).
+fn download_to(
     client: &reqwest::blocking::Client,
-    repo: &str,
-    file: &QuantFile,
-    output_dir: &Path,
-) -> Result<PathBuf, DownloadError> {
-    let url = format!("https://huggingface.co/{repo}/resolve/main/{}", file.path);
-    let dest_name = Path::new(&file.path)
-        .file_name()
-        .map(|n| n.to_owned())
-        .unwrap_or_else(|| file.path.clone().into());
-    let dest_path = output_dir.join(dest_name);
+    url: &str,
+    dest_path: &Path,
+    expected_size: u64,
+    label: &str,
+) -> Result<u64, DownloadError> {
+    let existing_len = fs::metadata(dest_path).map(|m| m.len()).unwrap_or(0);
 
-    let mut response = client
-        .get(&url)
+    if existing_len >= expected_size {
+        eprintln!("  already downloaded, skipping");
+        return Ok(0);
+    }
+
+    let mut request = client.get(url);
+    if existing_len > 0 {
+        request = request.header(reqwest::header::RANGE, format!("bytes={existing_len}-"));
+    }
+
+    let mut response = request
         .send()
         .map_err(|e| DownloadError::Network(e.to_string()))?;
 
-    if !response.status().is_success() {
-        return Err(DownloadError::Network(format!(
-            "HTTP {} fetching {}",
-            response.status(),
-            file.path
-        )));
-    }
+    let (mut out, mut downloaded) =
+        if existing_len > 0 && response.status() == reqwest::StatusCode::PARTIAL_CONTENT {
+            let file = fs::OpenOptions::new()
+                .append(true)
+                .open(dest_path)
+                .map_err(|e| DownloadError::Io(e.to_string()))?;
+            (file, existing_len)
+        } else {
+            if !response.status().is_success() {
+                return Err(DownloadError::Network(format!(
+                    "HTTP {} fetching {label}",
+                    response.status(),
+                )));
+            }
+            // Either a fresh download, or the server ignored our Range request
+            // (some don't support it) and sent the full body back: start over.
+            let file = fs::File::create(dest_path).map_err(|e| DownloadError::Io(e.to_string()))?;
+            (file, 0)
+        };
+    let transferred_start = downloaded;
 
-    let mut out = fs::File::create(&dest_path).map_err(|e| DownloadError::Io(e.to_string()))?;
     let mut buf = [0u8; CHUNK_SIZE];
-    let mut downloaded: u64 = 0;
-
     loop {
         let n = response
             .read(&mut buf)
@@ -109,25 +139,28 @@ fn download_one(
         eprint!(
             "\r  {:.1}/{:.1} GB",
             downloaded as f64 / 1e9,
-            file.size_bytes as f64 / 1e9
+            expected_size as f64 / 1e9
         );
     }
     eprintln!();
 
-    if downloaded != file.size_bytes {
+    if downloaded != expected_size {
         return Err(DownloadError::SizeMismatch {
-            path: file.path.clone(),
-            expected: file.size_bytes,
+            path: label.to_string(),
+            expected: expected_size,
             actual: downloaded,
         });
     }
 
-    Ok(dest_path)
+    Ok(downloaded - transferred_start)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::io::BufRead;
+    use std::net::{TcpListener, TcpStream};
+    use std::thread;
 
     #[test]
     fn size_mismatch_message_names_both_sizes() {
@@ -140,5 +173,150 @@ mod tests {
         assert!(msg.contains("100"));
         assert!(msg.contains("42"));
         assert!(msg.contains("model.Q4_K_M.gguf"));
+    }
+
+    /// Minimal single-request HTTP/1.1 test double. Serves `body` in full
+    /// unless the request carries a `Range: bytes=N-` header, in which case
+    /// (when `honor_range` is true) it replies 206 with only the remaining
+    /// bytes; when `honor_range` is false it ignores Range and always
+    /// replies 200 with the full body, mimicking a server without range
+    /// support.
+    fn serve_once(body: &'static [u8], honor_range: bool) -> String {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let addr = listener.local_addr().unwrap();
+        thread::spawn(move || {
+            if let Ok((stream, _)) = listener.accept() {
+                handle_request(stream, body, honor_range);
+            }
+        });
+        format!("http://{addr}")
+    }
+
+    fn handle_request(mut stream: TcpStream, body: &[u8], honor_range: bool) {
+        let mut reader = std::io::BufReader::new(stream.try_clone().unwrap());
+        let mut range_start: Option<usize> = None;
+        loop {
+            let mut line = String::new();
+            if reader.read_line(&mut line).unwrap_or(0) == 0 {
+                break;
+            }
+            let line = line.trim_end();
+            if line.is_empty() {
+                break;
+            }
+            if let Some(rest) = line
+                .strip_prefix("Range: bytes=")
+                .or_else(|| line.strip_prefix("range: bytes="))
+            {
+                range_start = rest.trim_end_matches('-').parse::<usize>().ok();
+            }
+        }
+
+        if honor_range {
+            if let Some(start) = range_start.filter(|&s| s < body.len()) {
+                let slice = &body[start..];
+                let headers = format!(
+                    "HTTP/1.1 206 Partial Content\r\nContent-Range: bytes {}-{}/{}\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+                    start, body.len() - 1, body.len(), slice.len()
+                );
+                let _ = stream.write_all(headers.as_bytes());
+                let _ = stream.write_all(slice);
+                return;
+            }
+        }
+
+        let headers = format!(
+            "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+            body.len()
+        );
+        let _ = stream.write_all(headers.as_bytes());
+        let _ = stream.write_all(body);
+    }
+
+    fn temp_dest(name: &str) -> PathBuf {
+        let mut path = std::env::temp_dir();
+        path.push(format!(
+            "auto-quantize-test-{name}-{:?}",
+            thread::current().id()
+        ));
+        path
+    }
+
+    const FIXTURE: &[u8] = b"0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+
+    #[test]
+    fn fresh_download_writes_the_full_body() {
+        let url = serve_once(FIXTURE, true);
+        let dest = temp_dest("fresh");
+        let _ = fs::remove_file(&dest);
+
+        let client = reqwest::blocking::Client::new();
+        let transferred =
+            download_to(&client, &url, &dest, FIXTURE.len() as u64, "fixture").unwrap();
+
+        assert_eq!(transferred, FIXTURE.len() as u64);
+        assert_eq!(fs::read(&dest).unwrap(), FIXTURE);
+        let _ = fs::remove_file(&dest);
+    }
+
+    #[test]
+    fn resumes_from_existing_partial_file_via_range_request() {
+        let half = FIXTURE.len() / 2;
+        let url = serve_once(FIXTURE, true);
+        let dest = temp_dest("resume");
+        fs::write(&dest, &FIXTURE[..half]).unwrap();
+
+        let client = reqwest::blocking::Client::new();
+        let transferred =
+            download_to(&client, &url, &dest, FIXTURE.len() as u64, "fixture").unwrap();
+
+        assert!(
+            transferred < FIXTURE.len() as u64,
+            "resume should transfer fewer bytes than the full file, got {transferred}"
+        );
+        assert_eq!(transferred as usize, FIXTURE.len() - half);
+        assert_eq!(fs::read(&dest).unwrap(), FIXTURE);
+        let _ = fs::remove_file(&dest);
+    }
+
+    #[test]
+    fn falls_back_to_full_restart_when_server_ignores_range() {
+        let half = FIXTURE.len() / 2;
+        let url = serve_once(FIXTURE, false);
+        let dest = temp_dest("no-range-support");
+        fs::write(&dest, &FIXTURE[..half]).unwrap();
+
+        let client = reqwest::blocking::Client::new();
+        let transferred =
+            download_to(&client, &url, &dest, FIXTURE.len() as u64, "fixture").unwrap();
+
+        assert_eq!(transferred, FIXTURE.len() as u64);
+        assert_eq!(fs::read(&dest).unwrap(), FIXTURE);
+        let _ = fs::remove_file(&dest);
+    }
+
+    #[test]
+    fn already_complete_file_is_skipped_without_a_network_call() {
+        let dest = temp_dest("already-complete");
+        fs::write(&dest, FIXTURE).unwrap();
+
+        // An unroutable address: if download_to tried to connect, this
+        // would error out (or hang past the client's timeout) instead of
+        // returning immediately.
+        let client = reqwest::blocking::Client::builder()
+            .timeout(Duration::from_secs(2))
+            .build()
+            .unwrap();
+        let transferred = download_to(
+            &client,
+            "http://127.0.0.1:1",
+            &dest,
+            FIXTURE.len() as u64,
+            "fixture",
+        )
+        .unwrap();
+
+        assert_eq!(transferred, 0);
+        let _ = fs::remove_file(&dest);
     }
 }
