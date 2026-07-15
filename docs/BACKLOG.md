@@ -38,7 +38,7 @@ The wow moment and the real hardware/catalog plumbing behind it.
     `system_profiler SPDisplaysDataType` (or documented as unsupported with
     a graceful `None` fallback — not a crash).
 
-- [ ] **1.4 Real Windows hardware probing**
+- [x] **1.4 Real Windows hardware probing**
   - `probe` reports `ram_bytes`/`ram_free_bytes` via `GlobalMemoryStatusEx`
     and `vram_bytes` via DXGI adapter enumeration.
   - Running on a Windows CI runner (per the CI matrix) exercises this path
