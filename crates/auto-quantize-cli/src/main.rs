@@ -7,7 +7,7 @@ use std::io::Write;
 use std::path::PathBuf;
 use std::time::Instant;
 
-use auto_quantize_core::{Preference, QuantOption};
+use auto_quantize_core::{ContextConfig, Preference, QuantOption};
 use clap::{Parser, Subcommand, ValueEnum};
 use errors::AppError;
 
@@ -66,6 +66,11 @@ enum Command {
         /// (larger, default) or speed (smaller, more headroom).
         #[arg(long, value_enum, default_value = "quality")]
         prefer: PreferArg,
+        /// Assumed context length (in tokens) for KV-cache headroom sizing.
+        /// Requires the repo's config.json to expose a recognized layer
+        /// count/hidden size; falls back to the default headroom otherwise.
+        #[arg(long)]
+        context: Option<u32>,
     },
 }
 
@@ -86,6 +91,7 @@ fn main() {
             output,
             reserve_vram,
             prefer,
+            context,
         }) => run_recommend(
             &repo,
             json,
@@ -94,6 +100,7 @@ fn main() {
             &output,
             reserve_vram,
             prefer.into(),
+            context,
         ),
     };
 
@@ -112,6 +119,7 @@ fn run_recommend(
     output_dir: &std::path::Path,
     reserve_vram_gb: f64,
     prefer: Preference,
+    context_length: Option<u32>,
 ) -> Result<(), AppError> {
     if !json {
         eprintln!("Probing hardware...");
@@ -126,9 +134,32 @@ fn run_recommend(
     let catalog_quants = catalog::fetch_quants(repo)?;
     let options: Vec<QuantOption> = catalog_quants.iter().map(|c| c.option.clone()).collect();
     let reserve_bytes = (reserve_vram_gb.max(0.0) * 1e9) as u64;
-    let recommendation =
-        auto_quantize_core::recommend_with_options(&hardware, &options, reserve_bytes, prefer)
-            .expect("catalog::fetch_quants never returns an empty quant list");
+
+    let context =
+        context_length.and_then(|context_length| match catalog::fetch_architecture(repo) {
+            Some(architecture) => Some(ContextConfig {
+                context_length,
+                architecture,
+            }),
+            None => {
+                if !json {
+                    eprintln!(
+                        "  could not determine model architecture for '{repo}'; \
+                         ignoring --context and using the default headroom"
+                    );
+                }
+                None
+            }
+        });
+
+    let recommendation = auto_quantize_core::recommend_with_context(
+        &hardware,
+        &options,
+        reserve_bytes,
+        prefer,
+        context,
+    )
+    .expect("catalog::fetch_quants never returns an empty quant list");
 
     if json {
         let payload = serde_json::json!({
