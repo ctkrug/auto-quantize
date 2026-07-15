@@ -7,9 +7,25 @@ use std::io::Write;
 use std::path::PathBuf;
 use std::time::Instant;
 
-use auto_quantize_core::QuantOption;
-use clap::{Parser, Subcommand};
+use auto_quantize_core::{Preference, QuantOption};
+use clap::{Parser, Subcommand, ValueEnum};
 use errors::AppError;
+
+/// CLI-facing mirror of [`Preference`] so clap can parse it from `--prefer`.
+#[derive(Clone, Copy, ValueEnum)]
+enum PreferArg {
+    Quality,
+    Speed,
+}
+
+impl From<PreferArg> for Preference {
+    fn from(arg: PreferArg) -> Self {
+        match arg {
+            PreferArg::Quality => Preference::Quality,
+            PreferArg::Speed => Preference::Speed,
+        }
+    }
+}
 
 #[derive(Parser)]
 #[command(
@@ -42,6 +58,14 @@ enum Command {
         /// Directory to download the recommended file(s) into.
         #[arg(short, long, default_value = ".")]
         output: PathBuf,
+        /// Reserve this many extra GB of accelerator budget beyond the
+        /// default headroom, shifting the recommendation toward smaller quants.
+        #[arg(long, default_value_t = 0.0)]
+        reserve_vram: f64,
+        /// Break ties between similarly-fitting quants toward quality
+        /// (larger, default) or speed (smaller, more headroom).
+        #[arg(long, value_enum, default_value = "quality")]
+        prefer: PreferArg,
     },
 }
 
@@ -60,7 +84,17 @@ fn main() {
             yes,
             timing,
             output,
-        }) => run_recommend(&repo, json, yes, timing, &output),
+            reserve_vram,
+            prefer,
+        }) => run_recommend(
+            &repo,
+            json,
+            yes,
+            timing,
+            &output,
+            reserve_vram,
+            prefer.into(),
+        ),
     };
 
     if let Err(err) = result {
@@ -69,12 +103,15 @@ fn main() {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn run_recommend(
     repo: &str,
     json: bool,
     yes: bool,
     timing: bool,
     output_dir: &std::path::Path,
+    reserve_vram_gb: f64,
+    prefer: Preference,
 ) -> Result<(), AppError> {
     if !json {
         eprintln!("Probing hardware...");
@@ -88,8 +125,10 @@ fn run_recommend(
 
     let catalog_quants = catalog::fetch_quants(repo)?;
     let options: Vec<QuantOption> = catalog_quants.iter().map(|c| c.option.clone()).collect();
-    let recommendation = auto_quantize_core::recommend(&hardware, &options)
-        .expect("catalog::fetch_quants never returns an empty quant list");
+    let reserve_bytes = (reserve_vram_gb.max(0.0) * 1e9) as u64;
+    let recommendation =
+        auto_quantize_core::recommend_with_options(&hardware, &options, reserve_bytes, prefer)
+            .expect("catalog::fetch_quants never returns an empty quant list");
 
     if json {
         let payload = serde_json::json!({
