@@ -63,8 +63,10 @@ quantizations in the repo, `5` download failed (e.g. size mismatch).
 - **Decision engine** — scores each available quant against the probed
   hardware (fits fully > swaps), reserving headroom for context/KV cache,
   and picks a winner with a one-line rationale.
-- **Download** — fetches the recommended file(s) with a progress indicator
-  and verifies the downloaded size against HuggingFace's reported size.
+- **Download** — fetches the recommended file(s) with a progress indicator,
+  resumes an interrupted download from where it left off (HTTP `Range`
+  request) instead of restarting from zero, and verifies the final size
+  against HuggingFace's reported size.
 - **Scriptable output** — `--json` for piping into other tooling, a
   non-interactive `--yes` flag, and a distinct exit code per failure class.
 - **Override flags** — `--reserve-vram <GB>` to pad the headroom beyond the
@@ -80,7 +82,6 @@ quantizations in the repo, `5` download failed (e.g. size mismatch).
 ### Planned
 
 - Effective memory-bandwidth probing and macOS/Windows hardware backends.
-- Download resume support.
 
 ## Stack
 
@@ -98,9 +99,9 @@ together, and [`docs/BACKLOG.md`](docs/BACKLOG.md) for the build plan.
 ## Status
 
 The core loop works end to end on Linux: real hardware probing, a live
-HuggingFace catalog fetch, the fit-scoring decision engine, and downloading
-the recommended file. See the backlog for what's next (macOS/Windows
-probing, download resume, override flags).
+HuggingFace catalog fetch, the fit-scoring decision engine, and a resumable
+download of the recommended file. See the backlog for what's next
+(macOS/Windows hardware probing).
 
 ## License
 
