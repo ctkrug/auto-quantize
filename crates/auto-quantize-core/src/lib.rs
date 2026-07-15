@@ -6,10 +6,15 @@
 //! hardware profile (via platform probes) and the quant list (via the
 //! HuggingFace API).
 
+pub mod architecture;
 pub mod decision;
 pub mod hardware;
 pub mod quant;
 
-pub use decision::{recommend, recommend_with_options, Preference, Recommendation};
+pub use architecture::ModelArchitecture;
+pub use decision::{
+    recommend, recommend_with_context, recommend_with_options, ContextConfig, Preference,
+    Recommendation,
+};
 pub use hardware::HardwareProfile;
 pub use quant::QuantOption;
