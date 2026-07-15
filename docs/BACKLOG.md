@@ -20,7 +20,7 @@ The wow moment and the real hardware/catalog plumbing behind it.
   - Pointing the command at a repo with zero GGUF files exits non-zero with
     a one-line, non-panicking error message.
 
-- [ ] **1.2 Real Linux hardware probing**
+- [x] **1.2 Real Linux hardware probing**
   - On a Linux host with an NVIDIA GPU, `auto-quantize probe` reports a
     non-zero `vram_bytes` sourced from `nvidia-smi` (or equivalent driver
     query), not a hardcoded value.
