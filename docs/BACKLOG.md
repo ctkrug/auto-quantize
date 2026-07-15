@@ -77,7 +77,7 @@ The wow moment and the real hardware/catalog plumbing behind it.
     restarting from zero, verified by asserting the transferred-byte count
     on resume is less than the full file size.
 
-- [ ] **2.3 Graceful handling of missing/incompatible models**
+- [x] **2.3 Graceful handling of missing/incompatible models**
   - A repo id that doesn't exist on HuggingFace produces a clear "repo not
     found" error and a non-zero exit code, not a stack trace.
   - A repo that exists but has no `.gguf` files at all produces a clear

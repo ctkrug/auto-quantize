@@ -71,3 +71,48 @@ fn recommend_repo_with_no_gguf_files_exits_non_zero_without_panicking() {
     assert!(!stderr.contains("panicked"));
     assert!(stderr.contains("no GGUF quantizations") || stderr.contains("GGUF"));
 }
+
+#[derive(serde::Deserialize)]
+struct JsonOutput {
+    hardware: JsonHardware,
+    recommendation: JsonRecommendation,
+    reason: String,
+}
+
+#[derive(serde::Deserialize)]
+struct JsonHardware {
+    ram_bytes: u64,
+}
+
+#[derive(serde::Deserialize)]
+struct JsonRecommendation {
+    quant: String,
+    size_bytes: u64,
+    fits_fully: bool,
+}
+
+/// docs/BACKLOG.md 3.1: --json emits exactly one JSON object on stdout
+/// that round-trips through serde_json into a typed struct.
+#[test]
+fn recommend_json_output_round_trips_and_has_no_other_stdout() {
+    let output = bin()
+        .args(["recommend", "TheBloke/Llama-2-7B-Chat-GGUF", "--json"])
+        .output()
+        .expect("failed to execute binary");
+    assert!(output.status.success());
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert_eq!(
+        stdout.lines().count(),
+        1,
+        "expected exactly one line of JSON on stdout, got:\n{stdout}"
+    );
+
+    let parsed: JsonOutput =
+        serde_json::from_str(stdout.trim()).expect("stdout must be a single valid JSON object");
+    assert!(parsed.hardware.ram_bytes > 0);
+    assert!(!parsed.recommendation.quant.is_empty());
+    assert!(parsed.recommendation.size_bytes > 0);
+    assert!(!parsed.reason.is_empty());
+    let _ = parsed.recommendation.fits_fully;
+}
