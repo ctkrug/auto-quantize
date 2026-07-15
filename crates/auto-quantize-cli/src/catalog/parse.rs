@@ -69,7 +69,11 @@ pub fn group_gguf_files(entries: &[TreeEntry]) -> Vec<CatalogQuant> {
         .into_iter()
         .map(|(_, label, mut files)| {
             files.sort_by(|a, b| a.path.cmp(&b.path));
-            let total_size = files.iter().map(|f| f.size_bytes).sum();
+            // The tree API's `size` field is an unvalidated u64; saturate
+            // rather than panic if a malformed response sums past u64::MAX.
+            let total_size = files
+                .iter()
+                .fold(0u64, |acc, f| acc.saturating_add(f.size_bytes));
             CatalogQuant {
                 option: QuantOption::new(label, total_size),
                 files,
