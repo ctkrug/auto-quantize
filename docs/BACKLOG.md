@@ -9,7 +9,7 @@ See [`docs/VISION.md`](VISION.md) for the why behind these choices.
 
 The wow moment and the real hardware/catalog plumbing behind it.
 
-- [ ] **1.1 [WOW] `recommend` prints one quant + one reason, end to end**
+- [x] **1.1 [WOW] `recommend` prints one quant + one reason, end to end**
   - Running `auto-quantize recommend <hf-repo>` against a real public GGUF
     repo (e.g. a small TheBloke/-style repo) prints exactly one recommended
     quant name and exactly one reason line to stdout, with no interactive
