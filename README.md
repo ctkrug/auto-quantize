@@ -44,6 +44,7 @@ auto-quantize recommend <hf-repo> --timing   # print hardware-probe latency to s
 auto-quantize recommend <hf-repo> -o <dir>   # download into <dir> instead of the cwd
 auto-quantize recommend <hf-repo> --reserve-vram 2   # reserve 2 extra GB of headroom
 auto-quantize recommend <hf-repo> --prefer speed     # step down one size for extra margin
+auto-quantize recommend <hf-repo> --context 8192     # size headroom for an 8192-token context
 auto-quantize probe                          # print the detected hardware profile and exit
 ```
 
@@ -68,14 +69,18 @@ quantizations in the repo, `5` download failed (e.g. size mismatch).
   non-interactive `--yes` flag, and a distinct exit code per failure class.
 - **Override flags** — `--reserve-vram <GB>` to pad the headroom beyond the
   default, `--prefer quality|speed` to break ties toward the largest fitting
-  quant or one size down for extra margin.
+  quant or one size down for extra margin, `--context <n>` to size headroom
+  from an exact KV-cache calculation instead of the flat 15% fallback.
+- **Context-aware headroom** — `--context <n>` resolves the repo's model
+  architecture (its own `config.json`, or its tagged base model's) and
+  reserves exactly the KV-cache bytes that context length needs, rather
+  than a flat fraction of the budget. Falls back to the flat reservation,
+  with a one-line note, when no architecture can be resolved.
 
 ### Planned
 
 - Effective memory-bandwidth probing and macOS/Windows hardware backends.
 - Download resume support.
-- Context-length-aware KV-cache headroom (today: a flat 15% reservation),
-  plus a `--context <n>` flag once that lands.
 
 ## Stack
 
