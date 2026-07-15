@@ -30,7 +30,7 @@ The wow moment and the real hardware/catalog plumbing behind it.
     `MemAvailable`) within rounding error, verified against a fixture file
     in a unit test.
 
-- [ ] **1.3 Real macOS hardware probing**
+- [x] **1.3 Real macOS hardware probing**
   - On Apple Silicon, `probe` reports unified memory size via `sysctl`
     (`hw.memsize`) as both `ram_bytes` and an inferred `vram_bytes` budget,
     with a comment/doc note explaining the unified-memory assumption.
