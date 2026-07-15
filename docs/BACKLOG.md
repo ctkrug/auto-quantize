@@ -93,7 +93,7 @@ The wow moment and the real hardware/catalog plumbing behind it.
   - The JSON output round-trips through `serde_json` in a test (parse it
     back into a typed struct without error).
 
-- [ ] **3.2 Non-interactive flag and exit code contract**
+- [x] **3.2 Non-interactive flag and exit code contract**
   - `--yes` skips the download confirmation prompt entirely.
   - Exit code 0 on a successful recommend-and-download; a documented
     non-zero code on each distinct failure class (network error, repo not
