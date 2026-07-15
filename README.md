@@ -42,6 +42,8 @@ auto-quantize recommend <hf-repo> --yes      # skip the confirmation and downloa
 auto-quantize recommend <hf-repo> --json     # single JSON object on stdout, no prompt
 auto-quantize recommend <hf-repo> --timing   # print hardware-probe latency to stderr
 auto-quantize recommend <hf-repo> -o <dir>   # download into <dir> instead of the cwd
+auto-quantize recommend <hf-repo> --reserve-vram 2   # reserve 2 extra GB of headroom
+auto-quantize recommend <hf-repo> --prefer speed     # step down one size for extra margin
 auto-quantize probe                          # print the detected hardware profile and exit
 ```
 
@@ -64,14 +66,16 @@ quantizations in the repo, `5` download failed (e.g. size mismatch).
   and verifies the downloaded size against HuggingFace's reported size.
 - **Scriptable output** — `--json` for piping into other tooling, a
   non-interactive `--yes` flag, and a distinct exit code per failure class.
+- **Override flags** — `--reserve-vram <GB>` to pad the headroom beyond the
+  default, `--prefer quality|speed` to break ties toward the largest fitting
+  quant or one size down for extra margin.
 
 ### Planned
 
 - Effective memory-bandwidth probing and macOS/Windows hardware backends.
 - Download resume support.
-- Context-length-aware KV-cache headroom (today: a flat 15% reservation).
-- `--reserve-vram`, `--context <n>`, and `--prefer quality|speed` override
-  flags.
+- Context-length-aware KV-cache headroom (today: a flat 15% reservation),
+  plus a `--context <n>` flag once that lands.
 
 ## Stack
 
