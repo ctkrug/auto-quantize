@@ -12,6 +12,7 @@ crates/
     src/
       hardware.rs        # HardwareProfile: vram/ram/bandwidth snapshot
       quant.rs           # QuantOption: name + size_bytes
+      architecture.rs    # ModelArchitecture: layers/hidden_size -> KV bytes
       decision.rs         # recommend(hardware, options) -> Recommendation
   auto-quantize-cli/     # the `auto-quantize` binary
     src/
@@ -25,7 +26,9 @@ crates/
         mod.rs
         parse.rs           # pure: tree-JSON -> CatalogQuant (unit-tested)
         fetch.rs           # thin: live HTTP call using parse.rs
-      download.rs          # streams recommended file(s) to disk
+        architecture.rs    # best-effort config.json -> ModelArchitecture,
+                           #   with base_model-tag fallback (--context)
+      download.rs          # streams recommended file(s) to disk, with resume
 ```
 
 `auto-quantize-core` is deliberately network- and OS-free so the fit-scoring
@@ -46,15 +49,23 @@ platform probing.
    `QuantOption` for the decision engine plus the underlying file list for
    downloading). Distinguishes repo-not-found / no-gguf-files / network
    errors as distinct `CatalogError` variants.
-3. `auto_quantize_core::recommend(&hardware, &options)` — picks the largest
-   quant that fits the accelerator budget (VRAM, or free RAM if no GPU) with
-   headroom reserved for context/KV cache, or the smallest available quant
-   with an "expect swapping" reason if nothing fits.
-4. Prints the quant + one-line reason (`--json` for machine-readable output).
-5. On confirmation (`--yes`, or an interactive `Y`), `download::download_files`
+3. If `--context <n>` was given, `catalog::fetch_architecture(repo)` tries
+   the repo's own `config.json`, then falls back to the `config.json` of the
+   repo named in its `base_model:<org>/<name>` tag (GGUF quant repos rarely
+   publish their own full config). Failure of any kind is not fatal — it
+   yields `None` and a one-line stderr note, not an error.
+4. `auto_quantize_core::recommend_with_context(&hardware, &options, ..., context)`
+   picks the largest quant that fits the accelerator budget (VRAM, or free
+   RAM if no GPU) with headroom reserved for context/KV cache — an *exact*
+   KV-cache byte count when `context` resolved, otherwise the flat 15%
+   fallback — or the smallest available quant with an "expect swapping"
+   reason if nothing fits.
+5. Prints the quant + one-line reason (`--json` for machine-readable output).
+6. On confirmation (`--yes`, or an interactive `Y`), `download::download_files`
    streams each backing file from
    `https://huggingface.co/{repo}/resolve/main/{path}` to `--output`,
-   verifying the downloaded byte count against the size HuggingFace reported.
+   resuming from any existing partial file via an HTTP `Range` request, and
+   verifying the final byte count against the size HuggingFace reported.
 
 Errors surface through `errors::AppError`, which gives each failure class
 (`Network`, `RepoNotFound`, `NoGgufFiles`, `Download`) its own stable exit
@@ -78,9 +89,8 @@ requirement. They need network access; there's no offline test profile yet.
 
 - macOS/Windows hardware probing are stubs (`probe::fallback`), not real
   backends — stories 1.3/1.4.
-- No context-length-aware KV-cache headroom yet; `decision.rs` reserves a
-  flat 15% of budget — story 1.6.
-- No download resume support — story 2.2.
-- No `--context` override flag yet: it depends on the context-aware headroom
-  calculation from 1.6, which doesn't exist. `--reserve-vram` and `--prefer`
-  are done; `--context` is the remaining piece of story 3.3.
+- `fetch_architecture`'s base-model fallback only follows one hop and only
+  recognizes `transformers`-style / GPT-2-style config field names; a repo
+  whose base model is itself gated, private, or unusually shaped falls back
+  to the flat headroom fraction rather than erroring — this is intentional
+  (docs/VISION.md's "honest about uncertainty"), not a bug to fix later.
