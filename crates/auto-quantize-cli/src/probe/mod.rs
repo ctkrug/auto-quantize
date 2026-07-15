@@ -18,3 +18,22 @@ pub fn probe() -> HardwareProfile {
         fallback::probe()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::time::Instant;
+
+    /// docs/BACKLOG.md 1.1: hardware probing (excluding HTTP calls) must
+    /// complete in well under a second.
+    #[test]
+    fn probe_completes_in_under_one_second() {
+        let start = Instant::now();
+        let _ = probe();
+        assert!(
+            start.elapsed().as_secs_f64() < 1.0,
+            "probe() took {:?}, expected < 1s",
+            start.elapsed()
+        );
+    }
+}
