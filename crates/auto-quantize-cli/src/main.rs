@@ -199,10 +199,50 @@ fn run_recommend(
 fn confirm_download() -> bool {
     print!("Download this build? [Y/n] ");
     let _ = std::io::stdout().flush();
+    confirm(std::io::stdin().lock())
+}
+
+/// Parses a yes/no answer from `reader`.
+fn confirm(mut reader: impl std::io::BufRead) -> bool {
     let mut input = String::new();
-    if std::io::stdin().read_line(&mut input).is_err() {
+    if reader.read_line(&mut input).is_err() {
         return false;
     }
     let answer = input.trim().to_lowercase();
     answer.is_empty() || answer == "y" || answer == "yes"
+}
+
+#[cfg(test)]
+mod confirm_tests {
+    use super::confirm;
+
+    #[test]
+    fn real_enter_keypress_defaults_to_yes() {
+        assert!(confirm(b"\n".as_slice()));
+    }
+
+    #[test]
+    fn eof_with_no_input_at_all_defaults_to_no() {
+        assert!(!confirm(b"".as_slice()));
+    }
+
+    #[test]
+    fn explicit_y_confirms() {
+        assert!(confirm(b"y\n".as_slice()));
+    }
+
+    #[test]
+    fn explicit_yes_confirms() {
+        assert!(confirm(b"Yes\n".as_slice()));
+    }
+
+    #[test]
+    fn explicit_n_declines() {
+        assert!(!confirm(b"n\n".as_slice()));
+    }
+
+    #[test]
+    fn garbage_input_declines() {
+        assert!(!confirm(b"asdf\n".as_slice()));
+    }
 }
