@@ -1,0 +1,16 @@
+[package]
+name = "auto-quantize"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Benchmark your machine and get the best-fitting quantized model build"
+default-run = "auto-quantize"
+
+[[bin]]
+name = "auto-quantize"
+path = "src/main.rs"
+
+[dependencies]
+auto-quantize-core = { path = "../auto-quantize-core" }
+clap = { version = "4", features = ["derive"] }
