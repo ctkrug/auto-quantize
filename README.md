@@ -1,5 +1,8 @@
 # auto-quantize
 
+[![CI](https://github.com/ctkrug/auto-quantize/actions/workflows/ci.yml/badge.svg)](https://github.com/ctkrug/auto-quantize/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
 **Stop guessing which quant fits your machine.** One command benchmarks your
 hardware and tells you — then downloads — the best-fitting quantized build of
 any open model on HuggingFace, instead of you eyeballing a GGUF repo and
