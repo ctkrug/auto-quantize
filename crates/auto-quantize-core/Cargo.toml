@@ -1,0 +1,10 @@
+[package]
+name = "auto-quantize-core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Hardware probing and quant-fit decision engine for auto-quantize"
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
