@@ -21,7 +21,8 @@ crates/
       probe/              # hardware probing, one backend per OS
         mod.rs             # cfg-gated dispatch
         linux.rs           # real: /proc/meminfo + nvidia-smi
-        fallback.rs        # macOS/Windows stub (honest "unknown", not a guess)
+        macos.rs           # real: sysctl/vm_stat + unified-memory or system_profiler
+        fallback.rs        # Windows stub today (honest "unknown", not a guess)
       catalog/            # HuggingFace GGUF catalog lookup
         mod.rs
         parse.rs           # pure: tree-JSON -> CatalogQuant (unit-tested)
@@ -38,10 +39,12 @@ platform probing.
 
 ## Data flow: `auto-quantize recommend <repo>`
 
-1. `probe::probe()` — reads `/proc/meminfo` and shells out to `nvidia-smi`
-   (Linux only today; other platforms get an honest all-unknown profile).
-   Runs in well under a second; see the `probe_completes_in_under_one_second`
-   test.
+1. `probe::probe()` — on Linux, reads `/proc/meminfo` and shells out to
+   `nvidia-smi`; on macOS, shells out to `sysctl`/`vm_stat` for RAM and
+   either reuses that figure as VRAM (Apple Silicon's unified memory) or
+   parses `system_profiler SPDisplaysDataType` (Intel + discrete GPU).
+   Windows still gets an honest all-unknown profile (story 1.4). Runs in
+   well under a second; see the `probe_completes_in_under_one_second` test.
 2. `catalog::fetch_quants(repo)` — calls
    `GET https://huggingface.co/api/models/{repo}/tree/main`, parses the file
    tree, filters to `.gguf` entries, and sums multi-part splits
@@ -87,8 +90,11 @@ requirement. They need network access; there's no offline test profile yet.
 
 ## Known gaps (tracked in `docs/BACKLOG.md`)
 
-- macOS/Windows hardware probing are stubs (`probe::fallback`), not real
-  backends — stories 1.3/1.4.
+- Windows hardware probing is still a stub (`probe::fallback`) — story 1.4.
+  macOS's `sysctl`/`vm_stat`/`system_profiler` backend can't be
+  compile-verified in every dev environment (no macOS host, no linkable
+  cross toolchain here); the CI matrix's `macos-latest` runner is the real
+  check.
 - `fetch_architecture`'s base-model fallback only follows one hop and only
   recognizes `transformers`-style / GPT-2-style config field names; a repo
   whose base model is itself gated, private, or unusually shaped falls back
