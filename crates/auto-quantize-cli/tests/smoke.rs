@@ -72,6 +72,19 @@ fn recommend_repo_with_no_gguf_files_exits_non_zero_without_panicking() {
     assert!(stderr.contains("no GGUF quantizations") || stderr.contains("GGUF"));
 }
 
+/// docs/BACKLOG.md 3.2: each failure class gets its own documented exit code.
+#[test]
+fn recommend_nonexistent_repo_exits_with_repo_not_found_code() {
+    let output = bin()
+        .args(["recommend", "ctkrug/this-repo-does-not-exist-xyz123"])
+        .output()
+        .expect("failed to execute binary");
+    assert!(!output.status.success());
+    assert_eq!(output.status.code(), Some(3));
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(!stderr.contains("panicked"));
+}
+
 #[derive(serde::Deserialize)]
 struct JsonOutput {
     hardware: JsonHardware,
