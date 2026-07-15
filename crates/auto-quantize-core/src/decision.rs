@@ -371,6 +371,22 @@ mod tests {
     }
 
     #[test]
+    fn quant_exactly_equal_to_usable_budget_fits() {
+        // A quant whose size lands exactly on the usable-budget boundary
+        // must count as fitting (`<=`, not `<`) — mutation spot-check caught
+        // this boundary as untested by the original suite.
+        let context = ContextConfig {
+            context_length: 1_000,
+            architecture: arch(25, 10_000), // kv_cache_bytes == exactly 1 GB
+        };
+        let options = vec![QuantOption::new("Q_EXACT", gb(9))]; // 10 GB - 1 GB KV = 9 GB usable
+        let rec = recommend_with_context(&hw(10), &options, 0, Preference::Quality, Some(context))
+            .unwrap();
+        assert_eq!(rec.quant.name, "Q_EXACT");
+        assert!(rec.fits_fully);
+    }
+
+    #[test]
     fn no_context_config_matches_recommend_with_options() {
         let options = vec![QuantOption::new("Q5_K_M", gb(6))];
         let without = recommend_with_options(&hw(12), &options, 0, Preference::Quality).unwrap();
