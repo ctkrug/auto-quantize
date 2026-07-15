@@ -28,6 +28,25 @@ pub struct Recommendation {
 /// Pick the best-fitting quant for `hardware` out of `options`.
 ///
 /// Returns `None` if `options` is empty.
+///
+/// ```
+/// use auto_quantize_core::{recommend, HardwareProfile, QuantOption};
+///
+/// let hardware = HardwareProfile {
+///     vram_bytes: Some(12_000_000_000),
+///     ram_bytes: 32_000_000_000,
+///     ram_free_bytes: 18_000_000_000,
+///     bandwidth_gbps: Some(200.0),
+/// };
+/// let options = vec![
+///     QuantOption::new("Q4_K_M", 4_000_000_000),
+///     QuantOption::new("Q5_K_M", 6_000_000_000),
+/// ];
+///
+/// let rec = recommend(&hardware, &options).unwrap();
+/// assert_eq!(rec.quant.name, "Q5_K_M");
+/// assert!(rec.fits_fully);
+/// ```
 pub fn recommend(hardware: &HardwareProfile, options: &[QuantOption]) -> Option<Recommendation> {
     if options.is_empty() {
         return None;
