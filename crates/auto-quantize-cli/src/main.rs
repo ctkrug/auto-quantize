@@ -202,10 +202,19 @@ fn confirm_download() -> bool {
     confirm(std::io::stdin().lock())
 }
 
-/// Parses a yes/no answer from `reader`.
+/// Parses a yes/no answer from `reader`. A real Enter keypress sends an
+/// empty *line* (just `"\n"`) and defaults to yes, per the `[Y/n]` prompt;
+/// EOF with zero bytes read (closed/non-interactive stdin, e.g. piped from
+/// `/dev/null` or a CI runner without a tty) is not the same thing and must
+/// default to no, so a script that forgets `--yes` can't silently trigger a
+/// multi-gigabyte download.
 fn confirm(mut reader: impl std::io::BufRead) -> bool {
     let mut input = String::new();
-    if reader.read_line(&mut input).is_err() {
+    let bytes_read = match reader.read_line(&mut input) {
+        Ok(n) => n,
+        Err(_) => return false,
+    };
+    if bytes_read == 0 {
         return false;
     }
     let answer = input.trim().to_lowercase();
