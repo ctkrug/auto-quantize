@@ -22,7 +22,8 @@ crates/
         mod.rs             # cfg-gated dispatch
         linux.rs           # real: /proc/meminfo + nvidia-smi
         macos.rs           # real: sysctl/vm_stat + unified-memory or system_profiler
-        fallback.rs        # Windows stub today (honest "unknown", not a guess)
+        windows.rs         # real: GlobalMemoryStatusEx + DXGI adapter enumeration
+        fallback.rs        # honest "unknown" for anything else (BSDs, ...)
       catalog/            # HuggingFace GGUF catalog lookup
         mod.rs
         parse.rs           # pure: tree-JSON -> CatalogQuant (unit-tested)
@@ -42,9 +43,11 @@ platform probing.
 1. `probe::probe()` — on Linux, reads `/proc/meminfo` and shells out to
    `nvidia-smi`; on macOS, shells out to `sysctl`/`vm_stat` for RAM and
    either reuses that figure as VRAM (Apple Silicon's unified memory) or
-   parses `system_profiler SPDisplaysDataType` (Intel + discrete GPU).
-   Windows still gets an honest all-unknown profile (story 1.4). Runs in
-   well under a second; see the `probe_completes_in_under_one_second` test.
+   parses `system_profiler SPDisplaysDataType` (Intel + discrete GPU); on
+   Windows, calls `GlobalMemoryStatusEx` for RAM and enumerates DXGI
+   adapters for VRAM. Any other platform gets an honest all-unknown
+   profile. Runs in well under a second; see the
+   `probe_completes_in_under_one_second` test.
 2. `catalog::fetch_quants(repo)` — calls
    `GET https://huggingface.co/api/models/{repo}/tree/main`, parses the file
    tree, filters to `.gguf` entries, and sums multi-part splits
@@ -90,11 +93,12 @@ requirement. They need network access; there's no offline test profile yet.
 
 ## Known gaps (tracked in `docs/BACKLOG.md`)
 
-- Windows hardware probing is still a stub (`probe::fallback`) — story 1.4.
-  macOS's `sysctl`/`vm_stat`/`system_profiler` backend can't be
-  compile-verified in every dev environment (no macOS host, no linkable
-  cross toolchain here); the CI matrix's `macos-latest` runner is the real
-  check.
+- The macOS and Windows probe backends can't be fully compile-verified in
+  every dev environment (no macOS/Windows host, no linkable cross toolchain
+  here — reqwest's `ring` dependency needs a real C compiler for the target).
+  Both were type-checked and clippy-clean against `x86_64-apple-darwin` /
+  `x86_64-pc-windows-gnu` in isolation; the CI matrix's `macos-latest` /
+  `windows-latest` runners are the real build+link+run check.
 - `fetch_architecture`'s base-model fallback only follows one hop and only
   recognizes `transformers`-style / GPT-2-style config field names; a repo
   whose base model is itself gated, private, or unusually shaped falls back
