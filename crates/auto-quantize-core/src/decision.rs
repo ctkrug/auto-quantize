@@ -106,7 +106,10 @@ mod tests {
 
     #[test]
     fn falls_back_to_smallest_when_nothing_fits() {
-        let options = vec![QuantOption::new("Q4_K_M", gb(20)), QuantOption::new("Q5_K_M", gb(24))];
+        let options = vec![
+            QuantOption::new("Q4_K_M", gb(20)),
+            QuantOption::new("Q5_K_M", gb(24)),
+        ];
         let rec = recommend(&hw(8), &options).unwrap();
         assert_eq!(rec.quant.name, "Q4_K_M");
         assert!(!rec.fits_fully);

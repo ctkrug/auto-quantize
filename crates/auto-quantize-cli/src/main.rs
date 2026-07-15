@@ -2,7 +2,11 @@ use auto_quantize_core::HardwareProfile;
 use clap::{Parser, Subcommand};
 
 #[derive(Parser)]
-#[command(name = "auto-quantize", version, about = "Benchmark your machine and recommend the best-fitting quantized model build")]
+#[command(
+    name = "auto-quantize",
+    version,
+    about = "Benchmark your machine and recommend the best-fitting quantized model build"
+)]
 struct Cli {
     #[command(subcommand)]
     command: Option<Command>,
