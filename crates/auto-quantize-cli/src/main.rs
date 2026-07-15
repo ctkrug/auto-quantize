@@ -29,7 +29,7 @@ impl From<PreferArg> for Preference {
 
 #[derive(Parser)]
 #[command(
-    name = "auto-quantize",
+    name = "snug",
     version,
     about = "Benchmark your machine and recommend the best-fitting quantized model build"
 )]

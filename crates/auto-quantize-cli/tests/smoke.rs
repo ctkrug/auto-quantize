@@ -3,7 +3,7 @@
 use std::process::Command;
 
 fn bin() -> Command {
-    Command::new(env!("CARGO_BIN_EXE_auto-quantize"))
+    Command::new(env!("CARGO_BIN_EXE_snug"))
 }
 
 #[test]
@@ -30,7 +30,7 @@ fn reports_version() {
         .expect("failed to execute binary");
     assert!(output.status.success());
     let stdout = String::from_utf8_lossy(&output.stdout);
-    assert!(stdout.contains("auto-quantize"));
+    assert!(stdout.contains("snug"));
 }
 
 #[test]

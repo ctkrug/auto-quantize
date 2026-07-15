@@ -8,10 +8,10 @@ homepage.workspace = true
 keywords.workspace = true
 categories.workspace = true
 description = "Benchmark your machine and get the best-fitting quantized model build"
-default-run = "auto-quantize"
+default-run = "snug"
 
 [[bin]]
-name = "auto-quantize"
+name = "snug"
 path = "src/main.rs"
 
 [dependencies]

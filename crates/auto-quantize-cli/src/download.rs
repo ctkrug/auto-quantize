@@ -58,7 +58,7 @@ pub fn download_files(
 
     let client = reqwest::blocking::Client::builder()
         .timeout(REQUEST_TIMEOUT)
-        .user_agent(concat!("auto-quantize/", env!("CARGO_PKG_VERSION")))
+        .user_agent(concat!("snug/", env!("CARGO_PKG_VERSION")))
         .build()
         .map_err(|e| DownloadError::Network(e.to_string()))?;
 
@@ -241,10 +241,7 @@ mod tests {
 
     fn temp_dest(name: &str) -> PathBuf {
         let mut path = std::env::temp_dir();
-        path.push(format!(
-            "auto-quantize-test-{name}-{:?}",
-            thread::current().id()
-        ));
+        path.push(format!("snug-test-{name}-{:?}", thread::current().id()));
         path
     }
 

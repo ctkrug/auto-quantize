@@ -79,7 +79,7 @@ fn extract_base_model(tags: &[String]) -> Option<&str> {
 fn http_client() -> Option<reqwest::blocking::Client> {
     reqwest::blocking::Client::builder()
         .timeout(REQUEST_TIMEOUT)
-        .user_agent(concat!("auto-quantize/", env!("CARGO_PKG_VERSION")))
+        .user_agent(concat!("snug/", env!("CARGO_PKG_VERSION")))
         .build()
         .ok()
 }

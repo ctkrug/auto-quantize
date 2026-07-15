@@ -50,7 +50,7 @@ pub fn fetch_quants(repo: &str) -> Result<Vec<CatalogQuant>, CatalogError> {
 
     let client = reqwest::blocking::Client::builder()
         .timeout(REQUEST_TIMEOUT)
-        .user_agent(concat!("auto-quantize/", env!("CARGO_PKG_VERSION")))
+        .user_agent(concat!("snug/", env!("CARGO_PKG_VERSION")))
         .build()
         .map_err(|e| CatalogError::Network(e.to_string()))?;
 
