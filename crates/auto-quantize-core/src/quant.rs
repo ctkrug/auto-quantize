@@ -19,3 +19,15 @@ impl QuantOption {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn new_accepts_owned_and_borrowed_strings() {
+        let from_str = QuantOption::new("Q4_K_M", 4_000_000_000);
+        let from_string = QuantOption::new(String::from("Q4_K_M"), 4_000_000_000);
+        assert_eq!(from_str, from_string);
+    }
+}
