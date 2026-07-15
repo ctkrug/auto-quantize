@@ -81,5 +81,6 @@ requirement. They need network access; there's no offline test profile yet.
 - No context-length-aware KV-cache headroom yet; `decision.rs` reserves a
   flat 15% of budget — story 1.6.
 - No download resume support — story 2.2.
-- No `--reserve-vram` / `--context` / `--prefer` override flags yet —
-  story 3.3.
+- No `--context` override flag yet: it depends on the context-aware headroom
+  calculation from 1.6, which doesn't exist. `--reserve-vram` and `--prefer`
+  are done; `--context` is the remaining piece of story 3.3.
