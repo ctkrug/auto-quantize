@@ -7,7 +7,7 @@ use std::io::Write;
 use std::path::PathBuf;
 use std::time::Instant;
 
-use auto_quantize_core::{ContextConfig, Preference, QuantOption};
+use auto_quantize_core::{ContextConfig, HardwareProfile, Preference, QuantOption};
 use clap::{Parser, Subcommand, ValueEnum};
 use errors::AppError;
 
@@ -79,8 +79,7 @@ fn main() {
 
     let result = match cli.command {
         Some(Command::Probe) | None => {
-            let profile = probe::probe();
-            println!("{:?}", profile);
+            print_profile(&probe::probe());
             Ok(())
         }
         Some(Command::Recommend {
@@ -194,6 +193,26 @@ fn run_recommend(
     }
 
     Ok(())
+}
+
+/// Prints a probed [`HardwareProfile`] as a human-readable block. Sizes use
+/// decimal GB (1e9), matching the vocabulary the recommendation reasons in.
+fn print_profile(profile: &HardwareProfile) {
+    fn gb(bytes: u64) -> String {
+        format!("{:.1} GB", bytes as f64 / 1e9)
+    }
+
+    println!("Hardware profile:");
+    match profile.vram_bytes {
+        Some(vram) => println!("  VRAM:       {}", gb(vram)),
+        None => println!("  VRAM:       none detected (CPU-only)"),
+    }
+    println!("  RAM total:  {}", gb(profile.ram_bytes));
+    println!("  RAM free:   {}", gb(profile.ram_free_bytes));
+    match profile.bandwidth_gbps {
+        Some(bw) => println!("  Bandwidth:  {bw:.0} GB/s"),
+        None => println!("  Bandwidth:  unknown"),
+    }
 }
 
 fn confirm_download() -> bool {
