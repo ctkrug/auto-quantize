@@ -64,7 +64,7 @@ The wow moment and the real hardware/catalog plumbing behind it.
 
 ## Epic 2 — Download experience
 
-- [ ] **2.1 Download the recommended file**
+- [x] **2.1 Download the recommended file**
   - Accepting the recommendation (`Y` at the prompt, or `--yes`) downloads
     the exact recommended `.gguf` file to the current directory (or
     `--output <dir>`), with a visible progress indicator.
