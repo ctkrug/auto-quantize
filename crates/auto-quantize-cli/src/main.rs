@@ -1,4 +1,5 @@
-use auto_quantize_core::HardwareProfile;
+mod probe;
+
 use clap::{Parser, Subcommand};
 
 #[derive(Parser)]
@@ -23,16 +24,7 @@ fn main() {
 
     match cli.command {
         Some(Command::Probe) | None => {
-            // Real cross-platform probing lands in the BUILD phase (see
-            // docs/BACKLOG.md, epic 1). This placeholder proves the CLI ->
-            // core wiring works end to end.
-            let profile = HardwareProfile {
-                vram_bytes: None,
-                ram_bytes: 0,
-                ram_free_bytes: 0,
-                bandwidth_gbps: None,
-            };
-            println!("auto-quantize: hardware probing not yet implemented");
+            let profile = probe::probe();
             println!("{:?}", profile);
         }
     }
