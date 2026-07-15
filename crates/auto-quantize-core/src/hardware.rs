@@ -30,3 +30,30 @@ impl HardwareProfile {
         self.vram_bytes.unwrap_or(self.ram_free_bytes)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn budget_prefers_vram_when_present() {
+        let hw = HardwareProfile {
+            vram_bytes: Some(8_000_000_000),
+            ram_bytes: 32_000_000_000,
+            ram_free_bytes: 20_000_000_000,
+            bandwidth_gbps: None,
+        };
+        assert_eq!(hw.accelerator_budget_bytes(), 8_000_000_000);
+    }
+
+    #[test]
+    fn budget_falls_back_to_free_ram_without_vram() {
+        let hw = HardwareProfile {
+            vram_bytes: None,
+            ram_bytes: 32_000_000_000,
+            ram_free_bytes: 20_000_000_000,
+            bandwidth_gbps: None,
+        };
+        assert_eq!(hw.accelerator_budget_bytes(), 20_000_000_000);
+    }
+}
