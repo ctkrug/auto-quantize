@@ -73,4 +73,16 @@ mod tests {
         };
         assert_eq!(arch.kv_cache_bytes(4096), 0);
     }
+
+    #[test]
+    fn extreme_shape_saturates_instead_of_overflowing() {
+        // A malformed or hostile config.json isn't bounds-checked beyond
+        // "nonzero" (catalog::architecture::RawConfig::into_architecture),
+        // so u32::MAX layers/hidden_size/context must not panic or wrap.
+        let arch = ModelArchitecture {
+            num_layers: u32::MAX,
+            hidden_size: u32::MAX,
+        };
+        assert_eq!(arch.kv_cache_bytes(u32::MAX), u64::MAX);
+    }
 }
