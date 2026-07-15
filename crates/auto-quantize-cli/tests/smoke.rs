@@ -41,9 +41,28 @@ fn recommend_help_documents_every_flag() {
         .expect("failed to execute binary");
     assert!(output.status.success());
     let stdout = String::from_utf8_lossy(&output.stdout);
-    for flag in ["--json", "--yes", "--timing", "--output"] {
+    for flag in [
+        "--json",
+        "--yes",
+        "--timing",
+        "--output",
+        "--reserve-vram",
+        "--prefer",
+    ] {
         assert!(stdout.contains(flag), "--help missing {flag}:\n{stdout}");
     }
+}
+
+#[test]
+fn top_level_help_documents_both_subcommands() {
+    let output = bin()
+        .arg("--help")
+        .output()
+        .expect("failed to execute binary");
+    assert!(output.status.success());
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains("probe"));
+    assert!(stdout.contains("recommend"));
 }
 
 #[test]
@@ -69,6 +88,10 @@ fn recommend_repo_with_no_gguf_files_exits_non_zero_without_panicking() {
     assert_eq!(output.status.code(), Some(4));
     let stderr = String::from_utf8_lossy(&output.stderr);
     assert!(!stderr.contains("panicked"));
+    assert!(
+        !stderr.contains("Err("),
+        "leaked raw Debug output:\n{stderr}"
+    );
     assert!(stderr.contains("no GGUF quantizations") || stderr.contains("GGUF"));
 }
 
@@ -83,6 +106,11 @@ fn recommend_nonexistent_repo_exits_with_repo_not_found_code() {
     assert_eq!(output.status.code(), Some(3));
     let stderr = String::from_utf8_lossy(&output.stderr);
     assert!(!stderr.contains("panicked"));
+    assert!(
+        !stderr.contains("Err("),
+        "leaked raw Debug output:\n{stderr}"
+    );
+    assert!(stderr.contains("was not found"));
 }
 
 #[derive(serde::Deserialize)]
