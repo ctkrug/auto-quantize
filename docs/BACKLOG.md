@@ -100,7 +100,7 @@ The wow moment and the real hardware/catalog plumbing behind it.
     found, no compatible quants) — verified by an integration test
     asserting specific codes per case.
 
-- [ ] **3.3 Override flags for power users**
+- [x] **3.3 Override flags for power users**
   - `--reserve-vram <GB>` increases the reserved headroom beyond the
     default and visibly changes which quant is recommended in a
     before/after test.
