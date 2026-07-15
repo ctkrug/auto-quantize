@@ -206,4 +206,17 @@ mod tests {
         let quants = group_gguf_files(&entries);
         assert_eq!(quants[0].option.name, "model");
     }
+
+    #[test]
+    fn groups_saturates_instead_of_overflowing_on_absurd_sizes() {
+        // The HuggingFace tree API's `size` field is an unvalidated u64; a
+        // malformed or hostile response summing multi-part sizes near
+        // u64::MAX must not panic.
+        let entries = vec![
+            entry("file", "model.Q4_K_M-00001-of-00002.gguf", u64::MAX),
+            entry("file", "model.Q4_K_M-00002-of-00002.gguf", u64::MAX),
+        ];
+        let quants = group_gguf_files(&entries);
+        assert_eq!(quants[0].option.size_bytes, u64::MAX);
+    }
 }
