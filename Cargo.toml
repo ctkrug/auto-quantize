@@ -10,3 +10,6 @@ version = "0.1.0"
 edition = "2021"
 license = "MIT"
 repository = "https://github.com/ctkrug/auto-quantize"
+homepage = "https://github.com/ctkrug/auto-quantize"
+keywords = ["gguf", "quantization", "llm", "cli"]
+categories = ["command-line-utilities"]
