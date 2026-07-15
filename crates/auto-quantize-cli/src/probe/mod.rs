@@ -1,9 +1,11 @@
 //! Platform hardware probing: dispatches to a real per-OS backend.
 
-#[cfg(not(target_os = "linux"))]
+#[cfg(not(any(target_os = "linux", target_os = "macos")))]
 mod fallback;
 #[cfg(target_os = "linux")]
 mod linux;
+#[cfg(target_os = "macos")]
+mod macos;
 
 use auto_quantize_core::HardwareProfile;
 
@@ -13,7 +15,11 @@ pub fn probe() -> HardwareProfile {
     {
         linux::probe()
     }
-    #[cfg(not(target_os = "linux"))]
+    #[cfg(target_os = "macos")]
+    {
+        macos::probe()
+    }
+    #[cfg(not(any(target_os = "linux", target_os = "macos")))]
     {
         fallback::probe()
     }
