@@ -14,7 +14,7 @@ crates/
       quant.rs           # QuantOption: name + size_bytes
       architecture.rs    # ModelArchitecture: layers/hidden_size -> KV bytes
       decision.rs         # recommend(hardware, options) -> Recommendation
-  auto-quantize-cli/     # the `auto-quantize` binary
+  auto-quantize-cli/     # the `snug` binary
     src/
       main.rs             # clap CLI, subcommand dispatch, recommend flow
       errors.rs           # AppError + exit-code contract
@@ -38,7 +38,7 @@ logic (the part worth testing thoroughly) is trivial to unit-test and could
 be reused by a future GUI or library consumer without dragging in HTTP or
 platform probing.
 
-## Data flow: `auto-quantize recommend <repo>`
+## Data flow: `snug recommend <repo>`
 
 1. `probe::probe()` — on Linux, reads `/proc/meminfo` and shells out to
    `nvidia-smi`; on macOS, shells out to `sysctl`/`vm_stat` for RAM and

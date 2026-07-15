@@ -32,7 +32,7 @@ right quant for each one by hand.
 One CLI command:
 
 ```
-auto-quantize recommend <hf-repo>
+snug recommend <hf-repo>
 ```
 
 1. **Probe** the local machine's hardware in well under a second: VRAM (or
@@ -79,7 +79,7 @@ path is: run the command, read one line, say yes.
 
 ## What "v1 done" looks like
 
-- Running `auto-quantize recommend <hf-repo>` on Linux, macOS, or Windows
+- Running `snug recommend <hf-repo>` on Linux, macOS, or Windows
   probes real hardware (not a stub) in well under a second and prints a
   single recommended quant with a one-line reason — the wow moment, working
   end to end, no menus.
