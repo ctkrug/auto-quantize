@@ -296,6 +296,26 @@ mod tests {
     }
 
     #[test]
+    fn oversized_stale_file_is_discarded_and_redownloaded() {
+        // A destination file bigger than the expected size is stale/corrupt
+        // (e.g. left over from an interrupted write, or a same-named quant
+        // from a different repo revision) — it must not be silently kept.
+        let url = serve_once(FIXTURE, true);
+        let dest = temp_dest("oversized-stale");
+        let mut garbage = FIXTURE.to_vec();
+        garbage.extend_from_slice(b"-TRAILING-GARBAGE-FROM-A-STALE-WRITE");
+        fs::write(&dest, &garbage).unwrap();
+
+        let client = reqwest::blocking::Client::new();
+        let transferred =
+            download_to(&client, &url, &dest, FIXTURE.len() as u64, "fixture").unwrap();
+
+        assert_eq!(transferred, FIXTURE.len() as u64);
+        assert_eq!(fs::read(&dest).unwrap(), FIXTURE);
+        let _ = fs::remove_file(&dest);
+    }
+
+    #[test]
     fn already_complete_file_is_skipped_without_a_network_call() {
         let dest = temp_dest("already-complete");
         fs::write(&dest, FIXTURE).unwrap();
