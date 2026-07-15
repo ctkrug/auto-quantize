@@ -1,9 +1,9 @@
-//! Conservative fallback probe for platforms without a real backend yet.
+//! Conservative fallback probe for platforms without a real backend.
 //!
-//! Real macOS (`sysctl`/`system_profiler`) and Windows (`GlobalMemoryStatusEx`/
-//! DXGI) probing are tracked in `docs/BACKLOG.md` (stories 1.3, 1.4). Until
-//! then this returns an honestly-unknown profile rather than a guess, so the
-//! CLI still runs everywhere without pretending to know the hardware.
+//! Linux, macOS, and Windows all have real backends now (`probe::linux`,
+//! `probe::macos`, `probe::windows`); this covers everything else (BSDs,
+//! other Unixes, ...) with an honestly-unknown profile rather than a guess,
+//! so the CLI still runs everywhere without pretending to know the hardware.
 
 use auto_quantize_core::HardwareProfile;
 
