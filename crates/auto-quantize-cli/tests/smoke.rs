@@ -48,6 +48,7 @@ fn recommend_help_documents_every_flag() {
         "--output",
         "--reserve-vram",
         "--prefer",
+        "--context",
     ] {
         assert!(stdout.contains(flag), "--help missing {flag}:\n{stdout}");
     }
@@ -156,4 +157,33 @@ fn recommend_json_output_round_trips_and_has_no_other_stdout() {
     assert!(parsed.recommendation.size_bytes > 0);
     assert!(!parsed.reason.is_empty());
     let _ = parsed.recommendation.fits_fully;
+}
+
+/// docs/BACKLOG.md 1.6, 3.3: --context resolves the repo's base-model
+/// architecture (this repo's own config.json only has model_type; the
+/// KV-cache sizing comes from its tagged base model) and names the context
+/// length in the reason instead of using the flat headroom fraction.
+#[test]
+fn recommend_with_context_names_the_context_length_in_the_reason() {
+    let output = bin()
+        .args([
+            "recommend",
+            "TheBloke/Mistral-7B-Instruct-v0.2-GGUF",
+            "--json",
+            "--context",
+            "8192",
+        ])
+        .output()
+        .expect("failed to execute binary");
+    assert!(output.status.success());
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let parsed: JsonOutput =
+        serde_json::from_str(stdout.trim()).expect("stdout must be a single valid JSON object");
+    assert!(
+        parsed.reason.contains("8192"),
+        "reason should name the context length:\n{}",
+        parsed.reason
+    );
+    assert!(parsed.reason.contains("KV cache"));
 }
