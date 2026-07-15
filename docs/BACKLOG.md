@@ -85,7 +85,7 @@ The wow moment and the real hardware/catalog plumbing behind it.
 
 ## Epic 3 — Scriptability and polish
 
-- [ ] **3.1 `--json` machine-readable output**
+- [x] **3.1 `--json` machine-readable output**
   - `auto-quantize recommend <repo> --json` emits a single JSON object to
     stdout with `hardware`, `recommendation`, and `reason` fields and no
     other stdout output mixed in (human-readable text goes to stderr, if
