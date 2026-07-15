@@ -25,6 +25,17 @@ pub struct Recommendation {
     pub fits_fully: bool,
 }
 
+/// Tie-breaking direction among quants that both fit the budget
+/// (docs/BACKLOG.md 3.3).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Preference {
+    /// Pick the largest fitting quant (best quality per byte). Default.
+    Quality,
+    /// Pick one size step below the largest fitting quant, trading quality
+    /// for extra headroom (and therefore speed/safety margin).
+    Speed,
+}
+
 /// Pick the best-fitting quant for `hardware` out of `options`.
 ///
 /// Returns `None` if `options` is empty.
@@ -48,35 +59,37 @@ pub struct Recommendation {
 /// assert!(rec.fits_fully);
 /// ```
 pub fn recommend(hardware: &HardwareProfile, options: &[QuantOption]) -> Option<Recommendation> {
+    recommend_with_options(hardware, options, 0, Preference::Quality)
+}
+
+/// Like [`recommend`], with power-user overrides: `extra_reserve_bytes` is
+/// subtracted from the accelerator budget before headroom is applied (e.g.
+/// `--reserve-vram`), and `prefer` breaks ties between fitting quants.
+pub fn recommend_with_options(
+    hardware: &HardwareProfile,
+    options: &[QuantOption],
+    extra_reserve_bytes: u64,
+    prefer: Preference,
+) -> Option<Recommendation> {
     if options.is_empty() {
         return None;
     }
 
-    let budget = hardware.accelerator_budget_bytes();
+    let budget = hardware
+        .accelerator_budget_bytes()
+        .saturating_sub(extra_reserve_bytes);
     let usable_budget = (budget as f64 * (1.0 - DEFAULT_HEADROOM_FRACTION)) as u64;
 
     let mut sorted: Vec<&QuantOption> = options.iter().collect();
     sorted.sort_by_key(|q| q.size_bytes);
 
-    let best_fit = sorted
+    let fitting: Vec<&&QuantOption> = sorted
         .iter()
-        .rev()
-        .find(|q| q.size_bytes <= usable_budget)
-        .copied();
+        .filter(|q| q.size_bytes <= usable_budget)
+        .collect();
 
-    match best_fit {
-        Some(winner) => {
-            let headroom_gb = (usable_budget - winner.size_bytes) as f64 / 1e9;
-            Some(Recommendation {
-                quant: winner.clone(),
-                reason: format!(
-                    "fits entirely within budget with {:.1} GB headroom for context + KV cache",
-                    headroom_gb
-                ),
-                fits_fully: true,
-            })
-        }
-        None => {
+    match (prefer, fitting.as_slice()) {
+        (_, []) => {
             // Nothing fits: fall back to the smallest option and say so.
             let smallest = sorted[0];
             let shortfall_gb = (smallest.size_bytes.saturating_sub(usable_budget)) as f64 / 1e9;
@@ -87,6 +100,30 @@ pub fn recommend(hardware: &HardwareProfile, options: &[QuantOption]) -> Option<
                     shortfall_gb
                 ),
                 fits_fully: false,
+            })
+        }
+        (Preference::Speed, [.., second_largest, _largest]) => {
+            let winner = **second_largest;
+            let headroom_gb = (usable_budget - winner.size_bytes) as f64 / 1e9;
+            Some(Recommendation {
+                quant: winner.clone(),
+                reason: format!(
+                    "fits entirely within budget with {:.1} GB headroom for context + KV cache; picked one size below the largest fit for extra speed margin",
+                    headroom_gb
+                ),
+                fits_fully: true,
+            })
+        }
+        (_, [.., largest]) => {
+            let winner = **largest;
+            let headroom_gb = (usable_budget - winner.size_bytes) as f64 / 1e9;
+            Some(Recommendation {
+                quant: winner.clone(),
+                reason: format!(
+                    "fits entirely within budget with {:.1} GB headroom for context + KV cache",
+                    headroom_gb
+                ),
+                fits_fully: true,
             })
         }
     }
@@ -137,5 +174,47 @@ mod tests {
     #[test]
     fn empty_options_returns_none() {
         assert!(recommend(&hw(12), &[]).is_none());
+    }
+
+    #[test]
+    fn extra_reserve_shrinks_the_usable_budget() {
+        let options = vec![QuantOption::new("Q8_0", gb(9))];
+        // 12 GB budget - 4 GB reserved = 8 GB * 0.85 = 6.8 GB usable -> no longer fits.
+        let rec = recommend_with_options(&hw(12), &options, gb(4), Preference::Quality).unwrap();
+        assert_eq!(rec.quant.name, "Q8_0");
+        assert!(!rec.fits_fully);
+    }
+
+    #[test]
+    fn extra_reserve_of_zero_matches_recommend() {
+        let options = vec![
+            QuantOption::new("Q4_K_M", gb(4)),
+            QuantOption::new("Q5_K_M", gb(6)),
+        ];
+        let plain = recommend(&hw(12), &options).unwrap();
+        let explicit = recommend_with_options(&hw(12), &options, 0, Preference::Quality).unwrap();
+        assert_eq!(plain, explicit);
+    }
+
+    #[test]
+    fn prefer_speed_picks_one_size_below_the_largest_fit() {
+        let options = vec![
+            QuantOption::new("Q4_K_M", gb(4)),
+            QuantOption::new("Q5_K_M", gb(6)),
+            QuantOption::new("Q6_K", gb(7)),
+        ];
+        // Both Q5_K_M and Q6_K fit the 12 GB budget's 10.2 GB usable portion.
+        let quality = recommend_with_options(&hw(12), &options, 0, Preference::Quality).unwrap();
+        assert_eq!(quality.quant.name, "Q6_K");
+
+        let speed = recommend_with_options(&hw(12), &options, 0, Preference::Speed).unwrap();
+        assert_eq!(speed.quant.name, "Q5_K_M");
+    }
+
+    #[test]
+    fn prefer_speed_falls_back_to_only_fitting_option() {
+        let options = vec![QuantOption::new("Q4_K_M", gb(4))];
+        let speed = recommend_with_options(&hw(12), &options, 0, Preference::Speed).unwrap();
+        assert_eq!(speed.quant.name, "Q4_K_M");
     }
 }

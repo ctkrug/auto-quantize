@@ -10,6 +10,6 @@ pub mod decision;
 pub mod hardware;
 pub mod quant;
 
-pub use decision::{recommend, Recommendation};
+pub use decision::{recommend, recommend_with_options, Preference, Recommendation};
 pub use hardware::HardwareProfile;
 pub use quant::QuantOption;
