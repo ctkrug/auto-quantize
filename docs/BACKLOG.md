@@ -44,7 +44,7 @@ The wow moment and the real hardware/catalog plumbing behind it.
   - Running on a Windows CI runner (per the CI matrix) exercises this path
     and the command exits 0.
 
-- [ ] **1.5 Fetch real GGUF quant catalog from HuggingFace**
+- [x] **1.5 Fetch real GGUF quant catalog from HuggingFace**
   - Given a HuggingFace repo id, the tool lists every `.gguf` file in the
     repo (name + byte size) via the HuggingFace API, without downloading
     any file content.
