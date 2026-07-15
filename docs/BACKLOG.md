@@ -54,7 +54,7 @@ The wow moment and the real hardware/catalog plumbing behind it.
   - Network failure (timeout, 404, rate limit) produces a specific,
     distinguishable error message per case, not one generic "failed".
 
-- [ ] **1.6 Context-aware headroom in the decision engine**
+- [x] **1.6 Context-aware headroom in the decision engine**
   - `recommend` accepts an implied or default context length and computes
     KV-cache headroom from it (model layer count / hidden size where
     available) instead of today's flat 15%-of-budget placeholder.
