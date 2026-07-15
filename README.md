@@ -10,16 +10,10 @@ re-downloading three times until something finally loads without swapping to
 death.
 
 ```
-$ auto-quantize recommend TheBloke/Llama-3-8B-GGUF
-Probing hardware... done (0.31s)
-  GPU:  Apple M2 Pro, 16 GB unified memory (≈11.5 GB usable)
-  RAM:  32 GB system, 18 GB free
-  Bus:  unified memory, ~200 GB/s
-
-Recommendation: Q5_K_M (5.7 GB)
-  Fits entirely in VRAM with 5.8 GB headroom for context + KV cache.
-  Q6_K would spill 1.2 GB to system RAM — noticeably slower on this bus.
-
+$ auto-quantize recommend TheBloke/Llama-2-7B-Chat-GGUF
+Probing hardware...
+Recommendation: Q4_K_M (4.1 GB)
+  fits entirely within budget with 2.3 GB headroom for context + KV cache
 Download this build? [Y/n]
 ```
 
@@ -40,23 +34,44 @@ has packaged it as a five-second CLI check.
 cross-platform hardware probing so the decision is made *for* you, with a
 reason you can sanity-check in one line.
 
-## Planned features
+## Usage
 
-- **Hardware probe** — detect GPU/VRAM (NVIDIA, Apple Silicon, AMD where
-  available), system RAM, and effective memory bandwidth in well under a
-  second, on Linux, macOS, and Windows.
-- **Quant catalog lookup** — pull the list of available GGUF quantizations
-  for any HuggingFace model repo without downloading the weights themselves.
-- **Decision engine** — score each available quant against the probed
-  hardware (fits fully in VRAM > fits with partial offload > swaps), reusing
-  Fit Check's sizing formulas, and pick a winner with a one-line rationale.
-- **Download** — fetch the recommended file directly, with resume support
-  and a progress bar, no browser or account required.
+```
+auto-quantize recommend <hf-repo>            # probe, fetch, recommend, prompt to download
+auto-quantize recommend <hf-repo> --yes      # skip the confirmation and download immediately
+auto-quantize recommend <hf-repo> --json     # single JSON object on stdout, no prompt
+auto-quantize recommend <hf-repo> --timing   # print hardware-probe latency to stderr
+auto-quantize recommend <hf-repo> -o <dir>   # download into <dir> instead of the cwd
+auto-quantize probe                          # print the detected hardware profile and exit
+```
+
+Exit codes: `0` success, `2` network error, `3` repo not found, `4` no GGUF
+quantizations in the repo, `5` download failed (e.g. size mismatch).
+
+## Features
+
+- **Hardware probe** — real on Linux today (`/proc/meminfo` for RAM,
+  `nvidia-smi` for VRAM), in well under a second. macOS and Windows
+  currently report an honest "unknown" rather than a guess (tracked in
+  `docs/BACKLOG.md`).
+- **Quant catalog lookup** — pulls the live list of `.gguf` files for any
+  HuggingFace model repo (name + size, no weight download), grouping
+  multi-part splits into one logical quant option.
+- **Decision engine** — scores each available quant against the probed
+  hardware (fits fully > swaps), reserving headroom for context/KV cache,
+  and picks a winner with a one-line rationale.
+- **Download** — fetches the recommended file(s) with a progress indicator
+  and verifies the downloaded size against HuggingFace's reported size.
 - **Scriptable output** — `--json` for piping into other tooling, a
-  non-interactive `--yes` flag, and a proper exit code contract for CI use.
-- **Override knobs** — `--reserve-vram`, `--context <n>`, and `--prefer
-  quality|speed` for users who want to nudge the recommendation instead of
-  fighting it.
+  non-interactive `--yes` flag, and a distinct exit code per failure class.
+
+### Planned
+
+- Effective memory-bandwidth probing and macOS/Windows hardware backends.
+- Download resume support.
+- Context-length-aware KV-cache headroom (today: a flat 15% reservation).
+- `--reserve-vram`, `--context <n>`, and `--prefer quality|speed` override
+  flags.
 
 ## Stack
 
@@ -67,12 +82,16 @@ Rust, dependency-light by design:
 - Platform-native hardware probing (no bundled GPU vendor SDKs) with thin,
   swappable OS backends for Linux/macOS/Windows
 
-See [`docs/VISION.md`](docs/VISION.md) for the full design rationale and
-[`docs/BACKLOG.md`](docs/BACKLOG.md) for the build plan.
+See [`docs/VISION.md`](docs/VISION.md) for the full design rationale,
+[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for how the code fits
+together, and [`docs/BACKLOG.md`](docs/BACKLOG.md) for the build plan.
 
 ## Status
 
-Early scaffold — not yet functional. See the backlog for what's next.
+The core loop works end to end on Linux: real hardware probing, a live
+HuggingFace catalog fetch, the fit-scoring decision engine, and downloading
+the recommended file. See the backlog for what's next (macOS/Windows
+probing, download resume, override flags).
 
 ## License
 
