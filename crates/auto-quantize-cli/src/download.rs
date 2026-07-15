@@ -88,11 +88,17 @@ fn download_to(
     expected_size: u64,
     label: &str,
 ) -> Result<u64, DownloadError> {
-    let existing_len = fs::metadata(dest_path).map(|m| m.len()).unwrap_or(0);
+    let mut existing_len = fs::metadata(dest_path).map(|m| m.len()).unwrap_or(0);
 
-    if existing_len >= expected_size {
+    if existing_len == expected_size {
         eprintln!("  already downloaded, skipping");
         return Ok(0);
+    }
+    if existing_len > expected_size {
+        // Bigger than the real file: a stale/corrupt leftover, not partial
+        // progress. Treat as absent so the fresh-download path below
+        // truncates and rewrites it from scratch.
+        existing_len = 0;
     }
 
     let mut request = client.get(url);
