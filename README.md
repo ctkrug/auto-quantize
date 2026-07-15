@@ -54,10 +54,10 @@ quantizations in the repo, `5` download failed (e.g. size mismatch).
 ## Features
 
 - **Hardware probe** — real on Linux (`/proc/meminfo` for RAM, `nvidia-smi`
-  for VRAM) and macOS (`sysctl`/`vm_stat` for RAM; unified memory or
-  `system_profiler` for VRAM), in well under a second. Windows currently
-  reports an honest "unknown" rather than a guess (tracked in
-  `docs/BACKLOG.md`).
+  for VRAM), macOS (`sysctl`/`vm_stat` for RAM; unified memory or
+  `system_profiler` for VRAM), and Windows (`GlobalMemoryStatusEx` for RAM,
+  DXGI adapter enumeration for VRAM) — in well under a second on every
+  platform.
 - **Quant catalog lookup** — pulls the live list of `.gguf` files for any
   HuggingFace model repo (name + size, no weight download), grouping
   multi-part splits into one logical quant option.
@@ -82,7 +82,8 @@ quantizations in the repo, `5` download failed (e.g. size mismatch).
 
 ### Planned
 
-- Effective memory-bandwidth probing and a real Windows hardware backend.
+- Effective memory-bandwidth probing (today: VRAM/RAM budget only, no
+  throughput estimate).
 
 ## Stack
 
@@ -99,10 +100,10 @@ together, and [`docs/BACKLOG.md`](docs/BACKLOG.md) for the build plan.
 
 ## Status
 
-The core loop works end to end on Linux and macOS: real hardware probing, a
-live HuggingFace catalog fetch, the fit-scoring decision engine, and a
-resumable download of the recommended file. See the backlog for what's next
-(Windows hardware probing).
+The core loop works end to end on Linux, macOS, and Windows: real hardware
+probing, a live HuggingFace catalog fetch, the fit-scoring decision engine,
+and a resumable download of the recommended file. See the backlog for the
+remaining polish (effective memory-bandwidth probing).
 
 ## License
 
