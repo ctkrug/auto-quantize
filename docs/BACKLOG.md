@@ -71,7 +71,7 @@ The wow moment and the real hardware/catalog plumbing behind it.
   - The downloaded file's byte size matches the size reported by the
     HuggingFace API for that file.
 
-- [ ] **2.2 Resume interrupted downloads**
+- [x] **2.2 Resume interrupted downloads**
   - Killing the process mid-download and re-running the same command
     resumes from the existing partial file (HTTP range request) instead of
     restarting from zero, verified by asserting the transferred-byte count
