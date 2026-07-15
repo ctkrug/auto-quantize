@@ -186,6 +186,22 @@ mod tests {
     }
 
     #[test]
+    fn extra_reserve_changes_which_quant_is_recommended() {
+        let options = vec![
+            QuantOption::new("Q4_K_M", gb(4)),
+            QuantOption::new("Q5_K_M", gb(6)),
+            QuantOption::new("Q6_K", gb(7)),
+        ];
+        let before = recommend_with_options(&hw(12), &options, 0, Preference::Quality).unwrap();
+        assert_eq!(before.quant.name, "Q6_K");
+
+        // Reserve 4 extra GB: 12 - 4 = 8 GB * 0.85 = 6.8 GB usable -> Q6_K no longer fits.
+        let after = recommend_with_options(&hw(12), &options, gb(4), Preference::Quality).unwrap();
+        assert_eq!(after.quant.name, "Q5_K_M");
+        assert_ne!(before.quant.name, after.quant.name);
+    }
+
+    #[test]
     fn extra_reserve_of_zero_matches_recommend() {
         let options = vec![
             QuantOption::new("Q4_K_M", gb(4)),
