@@ -1,6 +1,6 @@
 # Snug
 
-**▶ Live demo: [apps.charliekrug.com/auto-quantize](https://apps.charliekrug.com/auto-quantize/)**
+**▶ Live: [apps.charliekrug.com/snug/](apps.charliekrug.com/snug/)**
 
 [![CI](https://github.com/ctkrug/auto-quantize/actions/workflows/ci.yml/badge.svg)](https://github.com/ctkrug/auto-quantize/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
